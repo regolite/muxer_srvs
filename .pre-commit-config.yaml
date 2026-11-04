@@ -1,20 +1,70 @@
+# Shared pre-commit configuration, copied unchanged into every repository by sync-config.sh.
+# Do not edit the copies: change ros_pre_commit/pre-commit-config.yaml and re-sync.
+#
+# The ROS hooks run the scripts of the ros_pre_commit checkout next to this repository
+# (<ws>/src/ros_pre_commit, fetched by vcstool). The first hook fast-forwards that checkout,
+# so script updates reach every repository without touching this file. Only adding/removing
+# hooks or changing their arguments needs a re-sync.
+#
+#   pre-commit install                                              # once per clone
+#   pre-commit run --all-files                                      # whole repository
+#   pre-commit run --hook-stage manual include-cleaner --all-files  # needs a colcon build
 fail_fast: false
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+  # First: hooks run in the order listed, so ros_pre_commit is fast-forwarded to its upstream
+  # branch before the other hooks start (they then run the updated scripts).
+  - repo: local
     hooks:
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
-    -   id: check-merge-conflict
-    -   id: check-symlinks
-    -   id: check-xml
-    -   id: check-yaml
--   repo: https://github.com/pocc/pre-commit-hooks
-    rev: v1.3.5
+      - id: ros-pre-commit-update
+        name: ros_pre_commit up to date
+        entry: ../ros_pre_commit/hooks/check-update
+        language: script
+        always_run: true
+        pass_filenames: false
+        verbose: true  # show its notes (offline, unpushed commits) even when it passes
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
     hooks:
-      - id: uncrustify
-        args: [--replace, --no-backup, "-c", "uncrustify.cfg", "-q"]
-#      - id: clang-format
-#        args: [--style=Google]
-#      - id: clang-tidy
-#      - id: cpplint
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-xml
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: trailing-whitespace
+
+  # Entries are relative to the root of the repository being checked.
+  - repo: local
+    hooks:
+      - id: ament-uncrustify
+        name: uncrustify (ament code style)
+        entry: ../ros_pre_commit/hooks/ament-uncrustify
+        language: script
+        types_or: [c, c++]
+
+      - id: ament-cpplint
+        name: cpplint (ament)
+        entry: ../ros_pre_commit/hooks/ament-cpplint
+        language: script
+        types_or: [c, c++]
+
+      - id: ament-lint-cmake
+        name: lint_cmake (ament)
+        entry: ../ros_pre_commit/hooks/ament-lint-cmake
+        language: script
+        types: [cmake]
+
+      - id: include-cleaner
+        name: clang-include-cleaner
+        entry: ../ros_pre_commit/hooks/include_cleaner.py
+        language: script
+        types_or: [c, c++]
+        require_serial: true  # the script parallelises the files itself
+        stages: [manual]      # slow: run on demand
